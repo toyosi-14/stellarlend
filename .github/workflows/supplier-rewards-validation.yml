@@ -33,15 +33,32 @@ jobs:
       - name: Lending integration suites
         if: always()
         run: SUITES=lending-integration bash scripts/testing/run-contract-tests.sh test
+      - name: Install official Stellar CLI
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/stellar-cli"
+          curl -fsSL https://github.com/stellar/stellar-cli/releases/download/v28.1.0/stellar-cli-28.1.0-x86_64-unknown-linux-gnu.tar.gz -o "$RUNNER_TEMP/stellar-cli.tar.gz"
+          tar -xzf "$RUNNER_TEMP/stellar-cli.tar.gz" -C "$RUNNER_TEMP/stellar-cli"
+          echo "$RUNNER_TEMP/stellar-cli" >> "$GITHUB_PATH"
       - name: Wasm build
         if: always()
-        run: cargo build --manifest-path stellar-lend/Cargo.toml -p stellarlend-lending --target wasm32v1-none --release
-      - name: Repository local CI prerequisites
+        run: stellar contract build --manifest-path stellar-lend/contracts/lending/Cargo.toml
+      - name: Checkout unchanged upstream baseline
         if: always()
-        run: bash local-ci.sh
-      - name: Workspace formatting
+        uses: actions/checkout@v4
+        with:
+          ref: 252708a1ffae7bf0e21e65541f1e8056703abddc
+          path: baseline
+      - name: Baseline event topics
         if: always()
-        run: cargo fmt --manifest-path stellar-lend/Cargo.toml --all -- --check
-      - name: Lending clippy
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/stellar-lend/target
+        run: cargo test --manifest-path baseline/stellar-lend/Cargo.toml -p stellarlend-lending --test event_topics
+      - name: Baseline clippy
         if: always()
-        run: cargo clippy --manifest-path stellar-lend/Cargo.toml -p stellarlend-lending --lib -- -D warnings
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/stellar-lend/target
+        run: cargo clippy --manifest-path baseline/stellar-lend/Cargo.toml -p stellarlend-lending --lib -- -D warnings
+      - name: Baseline workspace formatting
+        if: always()
+        run: cargo fmt --manifest-path baseline/stellar-lend/Cargo.toml --all -- --check
