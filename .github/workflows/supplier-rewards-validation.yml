@@ -1,0 +1,38 @@
+name: Supplier rewards validation
+on:
+  push:
+    branches: [validation/1409-c52a]
+permissions:
+  contents: read
+jobs:
+  rewards:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      PROPTEST_CASES: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: stellar-lend
+          cache-on-failure: true
+      - name: New file formatting
+        run: rustfmt --edition 2021 --check stellar-lend/contracts/lending/src/supplier_rewards.rs stellar-lend/contracts/lending/tests/supplier_rewards.rs
+      - name: Supplier rewards tests
+        if: always()
+        run: cargo test --manifest-path stellar-lend/Cargo.toml -p stellarlend-lending --test supplier_rewards
+      - name: Error registry tests
+        if: always()
+        run: cargo test --manifest-path stellar-lend/Cargo.toml -p stellarlend-errors
+      - name: Lending integration suites
+        if: always()
+        run: SUITES=lending-integration bash scripts/testing/run-contract-tests.sh test
+      - name: Wasm build
+        if: always()
+        run: cargo build --manifest-path stellar-lend/Cargo.toml -p stellarlend-lending --target wasm32-unknown-unknown --release
