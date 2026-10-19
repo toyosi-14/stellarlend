@@ -17,7 +17,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: stellar-lend
@@ -35,4 +35,13 @@ jobs:
         run: SUITES=lending-integration bash scripts/testing/run-contract-tests.sh test
       - name: Wasm build
         if: always()
-        run: cargo build --manifest-path stellar-lend/Cargo.toml -p stellarlend-lending --target wasm32-unknown-unknown --release
+        run: cargo build --manifest-path stellar-lend/Cargo.toml -p stellarlend-lending --target wasm32v1-none --release
+      - name: Repository local CI prerequisites
+        if: always()
+        run: bash local-ci.sh
+      - name: Workspace formatting
+        if: always()
+        run: cargo fmt --manifest-path stellar-lend/Cargo.toml --all -- --check
+      - name: Lending clippy
+        if: always()
+        run: cargo clippy --manifest-path stellar-lend/Cargo.toml -p stellarlend-lending --lib -- -D warnings
